@@ -15,6 +15,8 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 0.2
         self.jump_speed = -6
 
+    def import_character_assets(self):
+
     # Get keyboard input to move the player
     def get_input(self):
         keys = pygame.key.get_pressed()
