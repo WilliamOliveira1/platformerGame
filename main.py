@@ -3,6 +3,7 @@ import sys
 from settings import *
 from tiles import Tile
 from level import Level
+from support import import_folder
 
 # Pygame setup
 pygame.init()
