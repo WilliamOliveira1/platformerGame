@@ -2,6 +2,7 @@ import pygame
 from tiles import Tile
 from settings import *
 from player import Player
+from particles import ParticleEffect
 
 
 class Level:
@@ -11,6 +12,33 @@ class Level:
         self.setup_level(level_data)
         self.world_shift = 0
         self.current_x = 0
+
+        # dust
+        self.dust_sprite = pygame.sprite.GroupSingle()
+        self.player_on_ground = False
+
+    def create_jump_particles(self, pos):
+        if self.player.sprite.facing_right:
+            pos -= pygame.math.Vector2(10, 5)
+        else:
+            pos += pygame.math.Vector2(10, -5)
+        jump_particle_sprite = ParticleEffect(pos, 'jump')
+        self.dust_sprite.add(jump_particle_sprite)
+
+    def get_player_on_ground(self):
+        if self.player.sprite.on_ground:
+            self.player_on_ground = True
+        else:
+            self.player_on_ground = False
+
+    def create_landing_dust(self):
+        if not self.player_on_ground and self.player.sprite.on_ground and not self.dust_sprite.sprites():
+            if self.player.sprite.facing_right:
+                offset = pygame.math.Vector2(10, 15)
+            else:
+                offset = pygame.math.Vector2(-10, 15)
+            fall_dust_particle = ParticleEffect(self.player.sprite.rect.midbottom - offset, 'land')
+            self.dust_sprite.add(fall_dust_particle)
 
     def setup_level(self, layout):
         self.tiles = pygame.sprite.Group()
@@ -23,7 +51,7 @@ class Level:
                     tile = Tile((x, y), tile_size)
                     self.tiles.add(tile)
                 if cell == 'P':
-                    player_sprite = Player((x, y), self.display_surface)
+                    player_sprite = Player((x, y), self.display_surface, self.create_jump_particles)
                     self.player.add(player_sprite)
 
     def scroll_x(self):
@@ -46,25 +74,18 @@ class Level:
         player.rect.x += player.direction.x * player.speed
         for sprite in self.tiles.sprites():
             if sprite.rect.colliderect(player.rect):
-                rect_x = player.rect.x
-                if sprite.rect.left <= player.rect.left <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom:
-                    player.on_left = True
+                if player.direction.x < 0:
                     player.rect.left = sprite.rect.right
+                    player.on_left = True
                     self.current_x = player.rect.left
-                    if not player.on_ground:
-                        player.rect.x = rect_x + 25
-                        player.rect.bottom = player.rect.bottom
-                if sprite.rect.left <= player.rect.right <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom:
-                    player.on_right = True
+                elif player.direction.x > 0:
                     player.rect.right = sprite.rect.left
+                    player.on_right = True
                     self.current_x = player.rect.right
-                    if not player.on_ground:
-                        player.rect.x = rect_x - 25
-                        player.rect.bottom = player.rect.bottom
 
-        if player.on_left and not (sprite.rect.left <= player.rect.left <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom):
+        if player.on_left and (player.rect.left < self.current_x or player.direction.x >= 0):
             player.on_left = False
-        if player.on_right and not (sprite.rect.left <= player.rect.right <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom):
+        if player.on_right and (player.rect.right > self.current_x or player.direction.x <= 0):
             player.on_right = False
 
     def vertical_movement_collision(self):
@@ -73,25 +94,25 @@ class Level:
 
         for sprite in self.tiles.sprites():
             if sprite.rect.colliderect(player.rect):
-                if player.direction.y > 0.5:
+                if player.direction.y > 0:
                     player.rect.bottom = sprite.rect.top
                     player.direction.y = 0
-                    if player.bottom_value == player.rect.bottom:
-                        player.on_ground = True
-                        player.on_ceiling = False
-                        player.bottom_value = player.rect.bottom
+                    player.on_ground = True
                 elif player.direction.y < 0:
                     player.rect.top = sprite.rect.bottom
                     player.direction.y = 0
                     player.on_ceiling = True
-                    player.on_ground = False
 
         if player.on_ground and player.direction.y < 0 or player.direction.y > 1:
             player.on_ground = False
-        if player.on_ceiling and player.direction.y > 1:
+        if player.on_ceiling and player.direction.y > 0.1:
             player.on_ceiling = False
 
     def run(self):
+        # dust particles
+        self.dust_sprite.update(self.world_shift)
+        self.dust_sprite.draw(self.display_surface)
+
         # level tiles
         self.tiles.update(self.world_shift)
         self.tiles.draw(self.display_surface)
@@ -100,5 +121,7 @@ class Level:
         # player
         self.player.update()
         self.horizontal_movement_collision()
+        self.get_player_on_ground()
         self.vertical_movement_collision()
+        self.create_landing_dust()
         self.player.draw(self.display_surface)
