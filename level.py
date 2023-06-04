@@ -23,7 +23,7 @@ class Level:
                     tile = Tile((x, y), tile_size)
                     self.tiles.add(tile)
                 if cell == 'P':
-                    player_sprite = Player((x, y))
+                    player_sprite = Player((x, y), self.display_surface)
                     self.player.add(player_sprite)
 
     def scroll_x(self):
@@ -44,40 +44,28 @@ class Level:
     def horizontal_movement_collision(self):
         player = self.player.sprite
         player.rect.x += player.direction.x * player.speed
-
         for sprite in self.tiles.sprites():
             if sprite.rect.colliderect(player.rect):
+                rect_x = player.rect.x
                 if sprite.rect.left <= player.rect.left <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom:
-                    player.rect.left = sprite.rect.right
                     player.on_left = True
-                    self.current_x = player.rect.left
-                if sprite.rect.left <= player.rect.right <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom:
-                    player.rect.right = sprite.rect.left
-                    player.on_right = True
-                    self.current_x = player.rect.right
-                    
-        if player.on_left and (player.rect.left < self.current_x or player.direction.x >= 0):
-            print('on left false')
-            player.on_left = False
-        if player.on_right and (player.rect.left < self.current_x or player.direction.x <= 0):
-            print('on right false')
-            player.on_right = False
-
-    def collision(self):
-        player = self.player.sprite
-        player.rect.x += player.direction.x * player.speed
-
-        for sprite in self.tiles.sprites():
-            print('2')
-            if sprite.rect.colliderect(sprite.rect):
-                print('3')
-                if player.direction.x < 0:
-                    print('4')
                     player.rect.left = sprite.rect.right
-
-                if player.direction.x == 1:
-                    print('5')
+                    self.current_x = player.rect.left
+                    if not player.on_ground:
+                        player.rect.x = rect_x + 25
+                        player.rect.bottom = player.rect.bottom
+                if sprite.rect.left <= player.rect.right <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom:
+                    player.on_right = True
                     player.rect.right = sprite.rect.left
+                    self.current_x = player.rect.right
+                    if not player.on_ground:
+                        player.rect.x = rect_x - 25
+                        player.rect.bottom = player.rect.bottom
+
+        if player.on_left and not (sprite.rect.left <= player.rect.left <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom):
+            player.on_left = False
+        if player.on_right and not (sprite.rect.left <= player.rect.right <= sprite.rect.right and sprite.rect.top <= player.rect.center[1] <= sprite.rect.bottom):
+            player.on_right = False
 
     def vertical_movement_collision(self):
         player = self.player.sprite
@@ -85,18 +73,22 @@ class Level:
 
         for sprite in self.tiles.sprites():
             if sprite.rect.colliderect(player.rect):
-                if player.direction.y > 0:
+                if player.direction.y > 0.5:
                     player.rect.bottom = sprite.rect.top
                     player.direction.y = 0
-                    player.on_ground = True
+                    if player.bottom_value == player.rect.bottom:
+                        player.on_ground = True
+                        player.on_ceiling = False
+                        player.bottom_value = player.rect.bottom
                 elif player.direction.y < 0:
                     player.rect.top = sprite.rect.bottom
                     player.direction.y = 0
                     player.on_ceiling = True
+                    player.on_ground = False
 
         if player.on_ground and player.direction.y < 0 or player.direction.y > 1:
             player.on_ground = False
-        if player.on_ceiling and player.direction.y > 0.1:
+        if player.on_ceiling and player.direction.y > 1:
             player.on_ceiling = False
 
     def run(self):
@@ -108,6 +100,5 @@ class Level:
         # player
         self.player.update()
         self.horizontal_movement_collision()
-        # self.collision()
         self.vertical_movement_collision()
         self.player.draw(self.display_surface)

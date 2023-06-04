@@ -2,27 +2,35 @@ import pygame
 
 from support import import_folder
 
+
 class Player(pygame.sprite.Sprite):
 
-    def __init__(self, pos):
+    def __init__(self, pos, surface):
         super().__init__()
         self.import_character_assets()
         self.frame_index = 0
         self.animation_speed = 0.15
-
         self.image = self.animations['idle'][self.frame_index]
         self.rect = self.image.get_rect(topleft=pos)
+        self.dust_particles = import_folder('./graphics/character/dust_particles/run')
+
+        # dust particles
+        self.import_dust_run_particles()
+        self.dust_frame_index = 0
+        self.dust_animation_speed = 0.15
+        self.display_surface = surface
 
         # player movement
         self.direction = pygame.math.Vector2(0, 0)
         self.speed = 0.5
-        self.gravity = 0.12
+        self.gravity = 0.2
         self.jump_speed = -6
         self.facing_right = True
         self.on_ground = False
         self.on_ceiling = False
         self.on_left = False
         self.on_right = False
+        self.bottom_value = 0
 
         # player status
         self.status = 'idle'
@@ -30,10 +38,12 @@ class Player(pygame.sprite.Sprite):
     def import_character_assets(self):
         character_path = './graphics/character/'
         self.animations = {'idle': [], 'run': [], 'jump': [], 'fall': []}
-
         for animation in self.animations.keys():
             full_path = character_path + animation
             self.animations[animation] = import_folder(full_path)
+
+    def import_dust_run_particles(self):
+        pass
 
     def animate(self):
         animation = self.animations[self.status]
@@ -63,13 +73,13 @@ class Player(pygame.sprite.Sprite):
             self.rect = self.image.get_rect(topleft=self.rect.topleft)
         elif self.on_ceiling:
             self.rect = self.image.get_rect(midtop=self.rect.midtop)
-
-
+        else:
+            self.rect = self.image.get_rect(center=self.rect.center)
 
     # Get keyboard input to move the player
     def get_input(self):
         keys = pygame.key.get_pressed()
-
+        self.bottom_value = self.rect.bottom
         if keys[pygame.K_RIGHT]:
             self.facing_right = True
             self.direction.x = 1
@@ -79,8 +89,13 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x = 0
 
-        if keys[pygame.K_SPACE] and self.on_ground:
-            self.jump()
+        if keys[pygame.K_SPACE] and self.on_ground and not self.on_ceiling:
+            if self.on_left or self.on_right:
+                print(1)
+                self.direction.x = 0
+            else:
+                print(2)
+                self.jump()
 
     '''def not_move_vertical(self):
         print(f'self.direction.y: {self.direction.y}')
